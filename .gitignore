@@ -1,0 +1,23 @@
+# Java / Maven
+/target/
+**/target/
+*.class
+*.jar
+*.war
+*.ear
+.mvn/wrapper/maven-wrapper.jar
+.mvn/wrapper/maven-wrapper.properties.backup
+
+# IDEs & tooling
+.idea/
+.vscode/
+*.iml
+*.log
+.DS_Store
+Thumbs.db
+
+# Build outputs
+/build/
+/out/
+*.swp
+*.tmp

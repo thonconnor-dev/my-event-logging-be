@@ -1,0 +1,11 @@
+spring:
+  jackson:
+    time-zone: UTC
+  mvc:
+    problemdetails:
+      enabled: true
+logging:
+  pattern:
+    console: "%d{ISO_OFFSET_DATE_TIME} level=%-5level logger=%logger trace=%X{correlationId:-} %msg%n"
+server:
+  port: 8080
