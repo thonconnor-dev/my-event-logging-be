@@ -2,6 +2,8 @@ package com.example.eventlog.config;
 
 import com.example.eventlog.model.EventResponse;
 import org.slf4j.MDC;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -14,6 +16,7 @@ import java.util.stream.Collectors;
 
 import jakarta.validation.ConstraintViolationException;
 
+@Order(Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
@@ -22,7 +25,7 @@ public class ApiExceptionHandler {
         List<String> errors = ex.getBindingResult()
                 .getFieldErrors()
                 .stream()
-                .map(err -> err.getField() + " " + err.getDefaultMessage())
+                .map(err -> err.getDefaultMessage())
                 .collect(Collectors.toList());
         return buildBadRequest(errors);
     }

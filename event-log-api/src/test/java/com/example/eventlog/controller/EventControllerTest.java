@@ -3,7 +3,9 @@ package com.example.eventlog.controller;
 import com.example.eventlog.model.EventRequest;
 import com.example.eventlog.model.EventResponse;
 import com.example.eventlog.service.EventLogService;
+import com.example.eventlog.service.LogQueryService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.example.eventlog.config.ApiExceptionHandler;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +13,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.context.annotation.Import;
 
 import java.util.Collections;
 
@@ -20,6 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = EventController.class)
+@Import(ApiExceptionHandler.class)
 class EventControllerTest {
 
     @Autowired
@@ -30,6 +34,9 @@ class EventControllerTest {
 
     @MockBean
     private EventLogService eventLogService;
+
+    @MockBean
+    private LogQueryService logQueryService;
 
     @Test
     void returnsServerTimestampWhenMissing() throws Exception {

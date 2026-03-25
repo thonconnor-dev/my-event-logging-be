@@ -5,10 +5,13 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.example.eventlog.model.EventRequest;
 import com.example.eventlog.model.EventResponse;
+import com.example.eventlog.model.LogRecord;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -16,17 +19,24 @@ import java.time.ZoneOffset;
 import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 
 class EventLogServiceTest {
 
     private EventLogService service;
     private ListAppender<ILoggingEvent> appender;
     private final Instant fixedInstant = Instant.parse("2026-03-24T16:00:00Z");
+    private LogIdentityGenerator identityGenerator;
+    private TransientLogCache transientLogCache;
 
     @BeforeEach
     void setUp() {
         Clock clock = Clock.fixed(fixedInstant, ZoneOffset.UTC);
-        service = new EventLogService(clock);
+        identityGenerator = Mockito.mock(LogIdentityGenerator.class);
+        transientLogCache = Mockito.mock(TransientLogCache.class);
+        Mockito.when(identityGenerator.generate(any())).thenReturn("log-id");
+        service = new EventLogService(clock, identityGenerator, transientLogCache);
         Logger logger = (Logger) LoggerFactory.getLogger(EventLogService.class);
         appender = new ListAppender<>();
         appender.start();
@@ -73,5 +83,14 @@ class EventLogServiceTest {
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.logEvent(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("within 24h");
+    }
+
+    @Test
+    void storesResolvedEventInCache() {
+        EventRequest request = new EventRequest("client-1", "Daily sync", Collections.emptyMap(), null);
+
+        service.logEvent(request);
+
+        verify(transientLogCache).upsert(any(LogRecord.class));
     }
 }
