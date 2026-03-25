@@ -2,6 +2,8 @@ package com.example.eventlog.service;
 
 import com.example.eventlog.model.EventRequest;
 import com.example.eventlog.model.EventResponse;
+import com.example.eventlog.model.LogRecord;
+import com.example.eventlog.model.LogSeverity;
 import com.example.eventlog.model.ResolvedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,9 +28,13 @@ public class EventLogService {
     private static final Duration MAX_FUTURE_DRIFT = Duration.ofHours(24);
 
     private final Clock clock;
+    private final LogIdentityGenerator identityGenerator;
+    private final TransientLogCache transientLogCache;
 
-    public EventLogService(Clock clock) {
+    public EventLogService(Clock clock, LogIdentityGenerator identityGenerator, TransientLogCache transientLogCache) {
         this.clock = clock;
+        this.identityGenerator = identityGenerator;
+        this.transientLogCache = transientLogCache;
     }
 
     public EventResponse logEvent(EventRequest request) {
@@ -36,6 +42,7 @@ public class EventLogService {
         String correlationId = ensureCorrelationId();
         ResolvedEvent resolved = resolveEvent(request, now, correlationId);
         logEventLine(resolved);
+        transientLogCache.upsert(toLogRecord(resolved));
         return EventResponse.success(resolved.resolvedTimestamp().toString(), correlationId);
     }
 
@@ -66,6 +73,34 @@ public class EventLogService {
                 source,
                 correlationId
         );
+    }
+
+    private LogRecord toLogRecord(ResolvedEvent event) {
+        return new LogRecord(
+                identityGenerator.generate(event),
+                event.callerId(),
+                event.message(),
+                event.metadata(),
+                event.resolvedTimestamp(),
+                resolveSeverity(event.metadata()),
+                event.source(),
+                event.correlationId()
+        );
+    }
+
+    private LogSeverity resolveSeverity(Map<String, String> metadata) {
+        if (metadata == null) {
+            return LogSeverity.INFO;
+        }
+        String candidate = metadata.get("severity");
+        if (candidate == null) {
+            return LogSeverity.INFO;
+        }
+        try {
+            return LogSeverity.valueOf(candidate.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return LogSeverity.INFO;
+        }
     }
 
     private OffsetDateTime parseTimestamp(String timestamp) {

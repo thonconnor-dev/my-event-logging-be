@@ -16,7 +16,7 @@ public record EventRequest(
         @Size(max = 10)
         Map<String, String> metadata,
         @Size(max = 50)
-        @Pattern(regexp = "^(\\d{4}-\\d{2}-\\d{2}T.+)$", message = "timestamp must be ISO 8601")
+        @Pattern(regexp = "^(\\d{4}-\\d{2}-\\d{2}T.+)$", message = "timestamp must be ISO 8601 with timezone")
         String timestamp
 ) {
 }

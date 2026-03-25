@@ -9,3 +9,9 @@ logging:
     console: "%d{ISO_OFFSET_DATE_TIME} level=%-5level logger=%logger trace=%X{correlationId:-} %msg%n"
 server:
   port: 8080
+
+log:
+  cache:
+    capacity: ${LOG_CACHE_CAPACITY:500}
+    staleness-seconds: ${LOG_CACHE_STALENESS_SECONDS:60}
+    max-page-size: ${LOG_CACHE_MAX_PAGE_SIZE:200}
