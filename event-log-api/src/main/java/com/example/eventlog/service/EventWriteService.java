@@ -1,10 +1,8 @@
 package com.example.eventlog.service;
 
-import com.example.eventlog.config.RetentionProperties;
 import com.example.eventlog.model.EventRecordEntity;
 import com.example.eventlog.model.EventRequest;
 import com.example.eventlog.model.EventResponse;
-import com.example.eventlog.model.LogRecord;
 import com.example.eventlog.model.LogSeverity;
 import com.example.eventlog.model.ResolvedEvent;
 import com.example.eventlog.repository.EventRecordRepository;
@@ -33,25 +31,20 @@ public class EventWriteService extends PersistenceService {
 
     private static final Logger log = LoggerFactory.getLogger(EventWriteService.class);
     private static final Duration MAX_FUTURE_DRIFT = Duration.ofHours(24);
+    private static final Duration DEFAULT_RETENTION_WINDOW = Duration.ofDays(30);
 
     private final LogIdentityGenerator identityGenerator;
-    private final TransientLogCache transientLogCache;
     private final ObjectMapper objectMapper;
-    private final RetentionProperties retentionProperties;
 
     public EventWriteService(
             Clock clock,
             LogIdentityGenerator identityGenerator,
-            TransientLogCache transientLogCache,
             EventRecordRepository repository,
-            ObjectMapper objectMapper,
-            RetentionProperties retentionProperties
+            ObjectMapper objectMapper
     ) {
         super(repository, clock);
         this.identityGenerator = identityGenerator;
-        this.transientLogCache = transientLogCache;
         this.objectMapper = objectMapper;
-        this.retentionProperties = retentionProperties;
     }
 
     public EventResponse logEvent(EventRequest request) {
@@ -67,7 +60,6 @@ public class EventWriteService extends PersistenceService {
                 messageHash
         );
         if (existingRecord.isPresent()) {
-            transientLogCache.ensurePresent(toLogRecord(resolvedEvent));
             logDuplicate(resolvedEvent);
             EventRecordEntity existing = existingRecord.get();
             return EventResponse.success(existing.getResolvedTimestamp().toString(), correlationId, existing.getId().toString());
@@ -86,12 +78,11 @@ public class EventWriteService extends PersistenceService {
                 .messageHash(messageHash)
                 .status("LOGGED")
                 .correlationId(correlationId)
-                .expiresAt(resolvedEvent.resolvedTimestamp().plus(Duration.ofDays(retentionProperties.days())))
+                .expiresAt(resolvedEvent.resolvedTimestamp().plus(DEFAULT_RETENTION_WINDOW))
                 .build();
 
         try {
             repository.saveAndFlush(entity);
-            transientLogCache.upsert(toLogRecord(resolvedEvent));
             logEventLine(resolvedEvent);
             return EventResponse.success(resolvedEvent.resolvedTimestamp().toString(), correlationId, entity.getId().toString());
         } catch (RuntimeException ex) {
@@ -101,7 +92,6 @@ public class EventWriteService extends PersistenceService {
                         resolvedEvent.resolvedTimestamp(),
                         messageHash
                 ).orElseThrow(() -> ex);
-                transientLogCache.ensurePresent(toLogRecord(resolvedEvent));
                 logDuplicate(resolvedEvent);
                 return EventResponse.success(existing.getResolvedTimestamp().toString(), correlationId, existing.getId().toString());
             }
@@ -195,19 +185,6 @@ public class EventWriteService extends PersistenceService {
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Unable to serialize metadata", e);
         }
-    }
-
-    private LogRecord toLogRecord(ResolvedEvent event) {
-        return new LogRecord(
-                identityGenerator.generate(event),
-                event.callerId(),
-                event.message(),
-                event.metadata(),
-                event.resolvedTimestamp(),
-                resolveSeverity(event.metadata()),
-                event.source(),
-                event.correlationId()
-        );
     }
 
     private void logEventLine(ResolvedEvent event) {

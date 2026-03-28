@@ -1,5 +1,7 @@
 # Feature Specification: Log Retrieval API with Transient Cache
 
+> **Status:** Superseded by `/specs/004-remove-retention-components/`. This document is retained for historical reference; the live service now pages directly over SQLite without a transient cache.
+
 **Feature Branch**: `002-log-readback`  
 **Created**: 2026-03-25  
 **Status**: Draft  

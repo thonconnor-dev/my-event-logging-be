@@ -1,5 +1,7 @@
 # Quickstart - Log Retrieval API with Transient Cache
 
+> **Status:** Superseded by `/specs/004-remove-retention-components/`. These steps describe the deprecated cache architecture and are preserved only for reference.
+
 ## 1. Boot the API locally
 1. Navigate to `event-log-api`.
 2. Start the Spring Boot app: `./mvnw spring-boot:run` (requires JDK 21).

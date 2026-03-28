@@ -1,5 +1,7 @@
 # Contract - Log Retrieval Endpoint
 
+> **Status:** Superseded by `/specs/004-remove-retention-components/`. This contract documents the legacy cache behavior; see the new contract in `/specs/004-remove-retention-components/contracts/log-service-api.md` for the active interface.
+
 ## POST /events (existing)
 - **Purpose**: Accept event submissions.
 - **Body**: `EventRequest` (unchanged).

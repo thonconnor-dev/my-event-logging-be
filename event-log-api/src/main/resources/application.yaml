@@ -22,15 +22,3 @@ logging:
     console: "%d{ISO_OFFSET_DATE_TIME} level=%-5level logger=%logger trace=%X{correlationId:-} %msg%n"
 server:
   port: 8080
-
-log:
-  cache:
-    capacity: ${LOG_CACHE_CAPACITY:500}
-    staleness-seconds: ${LOG_CACHE_STALENESS_SECONDS:60}
-    max-page-size: ${LOG_CACHE_MAX_PAGE_SIZE:200}
-
-eventlog:
-  retention:
-    days: ${EVENT_LOG_RETENTION_DAYS:30}
-    cron: ${EVENT_LOG_RETENTION_CRON:0 0 2 * * *}
-    batch-size: ${EVENT_LOG_RETENTION_BATCH_SIZE:500}

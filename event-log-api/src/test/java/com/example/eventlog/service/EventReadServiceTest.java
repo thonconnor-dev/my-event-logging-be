@@ -1,6 +1,5 @@
 package com.example.eventlog.service;
 
-import com.example.eventlog.model.CacheState;
 import com.example.eventlog.model.EventRecordEntity;
 import com.example.eventlog.model.LogPageResponse;
 import com.example.eventlog.repository.EventRecordRepository;
@@ -27,7 +26,6 @@ import static org.mockito.Mockito.when;
 class EventReadServiceTest {
 
     private EventRecordRepository repository;
-    private TransientLogCache cache;
     private LogCursorCodec cursorCodec;
     private EventReadService service;
 
@@ -36,12 +34,8 @@ class EventReadServiceTest {
     @BeforeEach
     void setUp() {
         repository = Mockito.mock(EventRecordRepository.class);
-        cache = Mockito.mock(TransientLogCache.class);
         cursorCodec = Mockito.mock(LogCursorCodec.class);
-        when(cache.currentState()).thenReturn(CacheState.HEALTHY);
-        when(cache.lastRefresh()).thenReturn(fixedNow);
-        when(cache.evictionCount()).thenReturn(0L);
-        service = new EventReadService(repository, cache, cursorCodec, new ObjectMapper(),
+        service = new EventReadService(repository, cursorCodec, new ObjectMapper(),
                 Clock.fixed(fixedNow, ZoneOffset.UTC));
     }
 
@@ -55,8 +49,7 @@ class EventReadServiceTest {
 
         assertThat(response.events()).hasSize(1);
         assertThat(response.nextPageToken()).isNull();
-        assertThat(response.cacheStatus()).isNotNull();
-        verify(cache).ensurePresent(any());
+        assertThat(response.dataComplete()).isTrue();
     }
 
     @Test

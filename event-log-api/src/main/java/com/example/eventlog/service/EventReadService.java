@@ -1,10 +1,7 @@
 package com.example.eventlog.service;
 
-import com.example.eventlog.model.CacheState;
-import com.example.eventlog.model.CacheStatusResponse;
 import com.example.eventlog.model.EventRecordEntity;
 import com.example.eventlog.model.LogPageResponse;
-import com.example.eventlog.model.LogRecord;
 import com.example.eventlog.model.LogRecordResponse;
 import com.example.eventlog.model.LogSeverity;
 import com.example.eventlog.model.ResolvedEvent;
@@ -18,7 +15,6 @@ import java.io.IOException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -33,18 +29,15 @@ public class EventReadService {
     private static final Duration DEFAULT_RANGE = Duration.ofDays(30);
 
     private final EventRecordRepository repository;
-    private final TransientLogCache cache;
     private final LogCursorCodec cursorCodec;
     private final ObjectMapper objectMapper;
     private final Clock clock;
 
     public EventReadService(EventRecordRepository repository,
-                            TransientLogCache cache,
                             LogCursorCodec cursorCodec,
                             ObjectMapper objectMapper,
                             Clock clock) {
         this.repository = repository;
-        this.cache = cache;
         this.cursorCodec = cursorCodec;
         this.objectMapper = objectMapper;
         this.clock = clock;
@@ -71,12 +64,9 @@ public class EventReadService {
                 PageRequest.of(0, limit)
         );
 
-        List<LogRecordResponse> responses = new ArrayList<>(rows.size());
-        for (EventRecordEntity entity : rows) {
-            LogRecord record = toLogRecord(entity);
-            cache.ensurePresent(record);
-            responses.add(toResponse(record));
-        }
+        List<LogRecordResponse> responses = rows.stream()
+                .map(this::toResponse)
+                .toList();
 
         boolean hasMore = rows.size() == limit;
         String nextToken = null;
@@ -85,10 +75,9 @@ public class EventReadService {
             nextToken = cursorCodec.encode(new LogCursorCodec.PageCursor(last.getId(), last.getResolvedTimestamp()));
         }
 
-        CacheStatusResponse cacheStatus = buildStatus();
         boolean dataComplete = !hasMore;
 
-        return new LogPageResponse(responses, nextToken, dataComplete, cacheStatus);
+        return new LogPageResponse(responses, nextToken, dataComplete);
     }
 
     private int resolvePageSize(Integer requested) {
@@ -99,11 +88,11 @@ public class EventReadService {
         return Math.min(sanitized, MAX_PAGE_SIZE);
     }
 
-    private LogRecord toLogRecord(EventRecordEntity entity) {
+    private LogRecordResponse toResponse(EventRecordEntity entity) {
         Map<String, String> metadata = parseMetadata(entity.getMetadataJson());
         LogSeverity severity = LogSeverity.valueOf(entity.getSeverity());
         ResolvedEvent.TimestampSource source = ResolvedEvent.TimestampSource.valueOf(entity.getTimestampSource());
-        return new LogRecord(
+        return new LogRecordResponse(
                 identityFromEntity(entity),
                 entity.getCallerId(),
                 entity.getMessage(),
@@ -112,19 +101,6 @@ public class EventReadService {
                 severity,
                 source,
                 entity.getCorrelationId()
-        );
-    }
-
-    private LogRecordResponse toResponse(LogRecord record) {
-        return new LogRecordResponse(
-                record.id(),
-                record.callerId(),
-                record.message(),
-                record.metadata(),
-                record.timestamp(),
-                record.severity(),
-                record.source(),
-                record.correlationId()
         );
     }
 
@@ -137,21 +113,6 @@ public class EventReadService {
         } catch (IOException ex) {
             throw new IllegalStateException("Unable to parse metadata JSON", ex);
         }
-    }
-
-    private CacheStatusResponse buildStatus() {
-        CacheState state = cache.currentState();
-        Instant lastRefresh = cache.lastRefresh();
-        long stalenessSeconds = Duration.between(lastRefresh, Instant.now(clock)).getSeconds();
-        if (stalenessSeconds < 0) {
-            stalenessSeconds = 0;
-        }
-        return new CacheStatusResponse(
-                state,
-                lastRefresh,
-                cache.evictionCount(),
-                stalenessSeconds
-        );
     }
 
     private String identityFromEntity(EventRecordEntity entity) {

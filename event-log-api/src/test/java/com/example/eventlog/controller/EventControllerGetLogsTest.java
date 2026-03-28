@@ -1,8 +1,6 @@
 package com.example.eventlog.controller;
 
 import com.example.eventlog.config.ApiExceptionHandler;
-import com.example.eventlog.model.CacheState;
-import com.example.eventlog.model.CacheStatusResponse;
 import com.example.eventlog.model.LogPageResponse;
 import com.example.eventlog.model.LogRecordResponse;
 import com.example.eventlog.model.LogSeverity;
@@ -46,17 +44,14 @@ class EventControllerGetLogsTest {
                 LogRecordResponse item = new LogRecordResponse("abc", "caller-1", "message",
                                 Map.of("severity", "INFO"), Instant.parse("2026-03-25T10:00:00Z"),
                                 LogSeverity.INFO, TimestampSource.SERVER, "corr-1");
-                CacheStatusResponse statusResponse = new CacheStatusResponse(CacheState.HEALTHY,
-                                Instant.parse("2026-03-25T10:01:00Z"), 0, 5);
                 Mockito.when(eventReadService.fetchLogs(null, null, null, null))
-                                .thenReturn(new LogPageResponse(List.of(item), "cursor123", true,
-                                                statusResponse));
+                                .thenReturn(new LogPageResponse(List.of(item), "cursor123", true));
 
                 mockMvc.perform(get("/events").accept(MediaType.APPLICATION_JSON))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.events[0].id").value("abc"))
                                 .andExpect(jsonPath("$.nextPageToken").value("cursor123"))
-                                .andExpect(jsonPath("$.cacheStatus.state").value("HEALTHY"))
+                                .andExpect(jsonPath("$.cacheStatus").doesNotExist())
                                 .andExpect(jsonPath("$.dataComplete").value(true));
         }
 
@@ -66,7 +61,7 @@ class EventControllerGetLogsTest {
                 String to = "2026-03-02T00:00:00Z";
                 Mockito.when(eventReadService.fetchLogs(Instant.parse(from), Instant.parse(to), 25,
                                 "token-1"))
-                                .thenReturn(new LogPageResponse(List.of(), null, true, null));
+                                .thenReturn(new LogPageResponse(List.of(), null, true));
 
                 mockMvc.perform(get("/events").param("from", from).param("to", to)
                                 .param("pageSize", "25").param("pageToken", "token-1"))
@@ -79,9 +74,9 @@ class EventControllerGetLogsTest {
         @Test
         void reusesCursorForSubsequentPages() throws Exception {
                 Mockito.when(eventReadService.fetchLogs(null, null, null, null))
-                                .thenReturn(new LogPageResponse(List.of(), "cursor-1", true, null));
+                                .thenReturn(new LogPageResponse(List.of(), "cursor-1", true));
                 Mockito.when(eventReadService.fetchLogs(null, null, null, "cursor-1"))
-                                .thenReturn(new LogPageResponse(List.of(), null, true, null));
+                                .thenReturn(new LogPageResponse(List.of(), null, true));
 
                 mockMvc.perform(get("/events")).andExpect(status().isOk());
 
