@@ -25,7 +25,8 @@ public class LogCursorCodec {
         try {
             byte[] raw = Base64.getUrlDecoder().decode(cursor);
             CursorPayload payload = objectMapper.readValue(raw, CursorPayload.class);
-            if (payload.lastId() == null || payload.lastId().isBlank() || payload.lastTimestamp() == null) {
+            if (payload.lastId() == null || payload.lastId().isBlank()
+                    || payload.lastTimestamp() == null) {
                 return Optional.empty();
             }
             UUID id = UUID.fromString(payload.lastId());
@@ -41,7 +42,8 @@ public class LogCursorCodec {
             throw new IllegalArgumentException("cursor must include id and timestamp");
         }
         try {
-            CursorPayload payload = new CursorPayload(cursor.lastId().toString(), cursor.lastResolvedTimestamp().toString());
+            CursorPayload payload = new CursorPayload(cursor.lastId().toString(),
+                    cursor.lastResolvedTimestamp().toString());
             byte[] json = objectMapper.writeValueAsBytes(payload);
             return Base64.getUrlEncoder().encodeToString(json);
         } catch (IOException ex) {

@@ -6,6 +6,7 @@ import com.example.eventlog.service.EventReadService;
 import com.example.eventlog.service.EventWriteService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.eventlog.config.ApiExceptionHandler;
+import com.example.eventlog.config.ApiExceptionHandler;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +14,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Import;
 
 import java.util.Collections;
@@ -23,6 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = EventController.class)
+@Import(ApiExceptionHandler.class)
 @Import(ApiExceptionHandler.class)
 class EventControllerTest {
 
@@ -40,12 +43,13 @@ class EventControllerTest {
 
     @Test
     void returnsServerTimestampWhenMissing() throws Exception {
-        EventResponse response = EventResponse.success("2026-03-24T16:00:00Z", "corr-123", "event-1");
+        EventResponse response =
+                EventResponse.success("2026-03-24T16:00:00Z", "corr-123", "event-1");
         Mockito.when(eventWriteService.logEvent(any(EventRequest.class))).thenReturn(response);
 
-        mockMvc.perform(post("/events")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new EventRequest("client-1", "Daily sync", Collections.emptyMap(), null))))
+        mockMvc.perform(post("/events").contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(
+                        new EventRequest("client-1", "Daily sync", Collections.emptyMap(), null))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.timestamp").value("2026-03-24T16:00:00Z"))
                 .andExpect(jsonPath("$.success").value(true));
@@ -53,14 +57,14 @@ class EventControllerTest {
 
     @Test
     void rejectsInvalidTimestamp() throws Exception {
-        Mockito.when(eventWriteService.logEvent(any(EventRequest.class)))
-                .thenThrow(new IllegalArgumentException("timestamp must be ISO 8601 with timezone"));
+        Mockito.when(eventWriteService.logEvent(any(EventRequest.class))).thenThrow(
+                new IllegalArgumentException("timestamp must be ISO 8601 with timezone"));
 
-        mockMvc.perform(post("/events")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new EventRequest("client-1", "oops", Collections.emptyMap(), "tomorrow"))))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.errors[0]").value("timestamp must be ISO 8601 with timezone"));
+        mockMvc.perform(post("/events").contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(
+                        new EventRequest("client-1", "oops", Collections.emptyMap(), "tomorrow"))))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.success").value(false))
+                .andExpect(
+                        jsonPath("$.errors[0]").value("timestamp must be ISO 8601 with timezone"));
     }
 }
