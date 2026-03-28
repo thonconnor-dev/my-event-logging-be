@@ -21,3 +21,5 @@ Thumbs.db
 /out/
 *.swp
 *.tmp
+
+*.db
