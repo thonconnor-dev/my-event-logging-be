@@ -1,7 +1,6 @@
 package com.example.eventlog.service;
 
 import com.example.eventlog.model.CacheState;
-import com.example.eventlog.model.CacheStatusResponse;
 import com.example.eventlog.model.EventRecordEntity;
 import com.example.eventlog.model.LogPageResponse;
 import com.example.eventlog.repository.EventRecordRepository;
@@ -42,20 +41,14 @@ class EventReadServiceTest {
         when(cache.currentState()).thenReturn(CacheState.HEALTHY);
         when(cache.lastRefresh()).thenReturn(fixedNow);
         when(cache.evictionCount()).thenReturn(0L);
-        service = new EventReadService(
-                repository,
-                cache,
-                cursorCodec,
-                new ObjectMapper(),
-                Clock.fixed(fixedNow, ZoneOffset.UTC)
-        );
+        service = new EventReadService(repository, cache, cursorCodec, new ObjectMapper(),
+                Clock.fixed(fixedNow, ZoneOffset.UTC));
     }
 
     @Test
     void fetchesRowsAndBuildsResponse() {
         EventRecordEntity entity = sampleEntity();
-        when(repository.findPage(any(), any(), any(), any(), any()))
-                .thenReturn(List.of(entity));
+        when(repository.findPage(any(), any(), any(), any(), any())).thenReturn(List.of(entity));
         when(cursorCodec.decode(null)).thenReturn(Optional.empty());
 
         LogPageResponse response = service.fetchLogs(null, null, null, null);
@@ -71,22 +64,19 @@ class EventReadServiceTest {
         EventRecordEntity entity = sampleEntity();
         when(repository.findPage(any(), any(), any(), any(), any()))
                 .thenReturn(List.of(entity, entity));
-        when(cursorCodec.decode("token")).thenReturn(Optional.of(new LogCursorCodec.PageCursor(UUID.randomUUID(), fixedNow.minusSeconds(5))));
+        when(cursorCodec.decode("token")).thenReturn(Optional
+                .of(new LogCursorCodec.PageCursor(UUID.randomUUID(), fixedNow.minusSeconds(5))));
         when(cursorCodec.encode(any())).thenReturn("next-token");
 
-        LogPageResponse response = service.fetchLogs(fixedNow.minusSeconds(60), fixedNow, 2, "token");
+        LogPageResponse response =
+                service.fetchLogs(fixedNow.minusSeconds(60), fixedNow, 2, "token");
 
         assertThat(response.nextPageToken()).isEqualTo("next-token");
         ArgumentCaptor<Instant> fromCaptor = ArgumentCaptor.forClass(Instant.class);
         ArgumentCaptor<Instant> toCaptor = ArgumentCaptor.forClass(Instant.class);
         ArgumentCaptor<PageRequest> pageRequestCaptor = ArgumentCaptor.forClass(PageRequest.class);
-        verify(repository).findPage(
-                fromCaptor.capture(),
-                toCaptor.capture(),
-                any(),
-                any(),
-                pageRequestCaptor.capture()
-        );
+        verify(repository).findPage(fromCaptor.capture(), toCaptor.capture(), any(), any(),
+                pageRequestCaptor.capture());
         assertThat(fromCaptor.getValue()).isEqualTo(fixedNow.minusSeconds(60));
         assertThat(toCaptor.getValue()).isEqualTo(fixedNow);
         assertThat(pageRequestCaptor.getValue().getPageSize()).isEqualTo(2);
@@ -99,20 +89,12 @@ class EventReadServiceTest {
     }
 
     private EventRecordEntity sampleEntity() {
-        return EventRecordEntity.builder()
-                .id(UUID.randomUUID())
-                .callerId("client-1")
-                .severity("INFO")
-                .message("Sample")
-                .metadataJson("{\"key\":\"value\"}")
+        return EventRecordEntity.builder().id(UUID.randomUUID()).callerId("client-1")
+                .severity("INFO").message("Sample").metadataJson("{\"key\":\"value\"}")
                 .clientTimestamp(fixedNow.minusSeconds(10))
                 .receivedTimestamp(fixedNow.minusSeconds(5))
-                .resolvedTimestamp(fixedNow.minusSeconds(5))
-                .timestampSource("SERVER")
-                .messageHash("hash")
-                .status("LOGGED")
-                .correlationId("corr-1")
-                .expiresAt(fixedNow.plusSeconds(60))
-                .build();
+                .resolvedTimestamp(fixedNow.minusSeconds(5)).timestampSource("SERVER")
+                .messageHash("hash").status("LOGGED").correlationId("corr-1")
+                .expiresAt(fixedNow.plusSeconds(60)).build();
     }
 }
