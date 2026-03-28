@@ -2,8 +2,8 @@ package com.example.eventlog.controller;
 
 import com.example.eventlog.model.EventRequest;
 import com.example.eventlog.model.EventResponse;
-import com.example.eventlog.service.EventLogService;
-import com.example.eventlog.service.LogQueryService;
+import com.example.eventlog.service.EventReadService;
+import com.example.eventlog.service.EventWriteService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.eventlog.config.ApiExceptionHandler;
 import org.junit.jupiter.api.Test;
@@ -33,15 +33,15 @@ class EventControllerTest {
     private ObjectMapper objectMapper;
 
     @MockBean
-    private EventLogService eventLogService;
+    private EventWriteService eventWriteService;
 
     @MockBean
-    private LogQueryService logQueryService;
+    private EventReadService eventReadService;
 
     @Test
     void returnsServerTimestampWhenMissing() throws Exception {
-        EventResponse response = EventResponse.success("2026-03-24T16:00:00Z", "corr-123");
-        Mockito.when(eventLogService.logEvent(any(EventRequest.class))).thenReturn(response);
+        EventResponse response = EventResponse.success("2026-03-24T16:00:00Z", "corr-123", "event-1");
+        Mockito.when(eventWriteService.logEvent(any(EventRequest.class))).thenReturn(response);
 
         mockMvc.perform(post("/events")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -53,7 +53,7 @@ class EventControllerTest {
 
     @Test
     void rejectsInvalidTimestamp() throws Exception {
-        Mockito.when(eventLogService.logEvent(any(EventRequest.class)))
+        Mockito.when(eventWriteService.logEvent(any(EventRequest.class)))
                 .thenThrow(new IllegalArgumentException("timestamp must be ISO 8601 with timezone"));
 
         mockMvc.perform(post("/events")

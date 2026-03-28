@@ -7,8 +7,8 @@ import com.example.eventlog.model.LogPageResponse;
 import com.example.eventlog.model.LogRecordResponse;
 import com.example.eventlog.model.LogSeverity;
 import com.example.eventlog.model.ResolvedEvent.TimestampSource;
-import com.example.eventlog.service.EventLogService;
-import com.example.eventlog.service.LogQueryService;
+import com.example.eventlog.service.EventReadService;
+import com.example.eventlog.service.EventWriteService;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,10 +36,10 @@ class EventControllerGetLogsTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private LogQueryService logQueryService;
+    private EventReadService eventReadService;
 
     @MockBean
-    private EventLogService eventLogService;
+    private EventWriteService eventWriteService;
 
     @Test
     void returnsLogsWithMetadata() throws Exception {
@@ -59,35 +59,39 @@ class EventControllerGetLogsTest {
                 0,
                 5
         );
-        Mockito.when(logQueryService.fetchLogs(null, null))
+        Mockito.when(eventReadService.fetchLogs(null, null, null, null))
                 .thenReturn(new LogPageResponse(List.of(item), "cursor123", true, statusResponse));
 
         mockMvc.perform(get("/events").accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items[0].id").value("abc"))
-                .andExpect(jsonPath("$.nextCursor").value("cursor123"))
+                .andExpect(jsonPath("$.events[0].id").value("abc"))
+                .andExpect(jsonPath("$.nextPageToken").value("cursor123"))
                 .andExpect(jsonPath("$.cacheStatus.state").value("HEALTHY"))
                 .andExpect(jsonPath("$.dataComplete").value(true));
     }
 
     @Test
     void passesLimitAndCursorParamsToService() throws Exception {
-        Mockito.when(logQueryService.fetchLogs(25, "abc"))
+        String from = "2026-03-01T00:00:00Z";
+        String to = "2026-03-02T00:00:00Z";
+        Mockito.when(eventReadService.fetchLogs(Instant.parse(from), Instant.parse(to), 25, "token-1"))
                 .thenReturn(new LogPageResponse(List.of(), null, true, null));
 
         mockMvc.perform(get("/events")
-                        .param("limit", "25")
-                        .param("cursor", "abc"))
+                        .param("from", from)
+                        .param("to", to)
+                        .param("pageSize", "25")
+                        .param("pageToken", "token-1"))
                 .andExpect(status().isOk());
 
-        verify(logQueryService).fetchLogs(eq(25), eq("abc"));
+        verify(eventReadService).fetchLogs(eq(Instant.parse(from)), eq(Instant.parse(to)), eq(25), eq("token-1"));
     }
 
     @Test
     void reusesCursorForSubsequentPages() throws Exception {
-        Mockito.when(logQueryService.fetchLogs(null, null))
+        Mockito.when(eventReadService.fetchLogs(null, null, null, null))
                 .thenReturn(new LogPageResponse(List.of(), "cursor-1", true, null));
-        Mockito.when(logQueryService.fetchLogs(null, "cursor-1"))
+        Mockito.when(eventReadService.fetchLogs(null, null, null, "cursor-1"))
                 .thenReturn(new LogPageResponse(List.of(), null, true, null));
 
         mockMvc.perform(get("/events"))
@@ -96,6 +100,6 @@ class EventControllerGetLogsTest {
         mockMvc.perform(get("/events").param("cursor", "cursor-1"))
                 .andExpect(status().isOk());
 
-        verify(logQueryService).fetchLogs(null, "cursor-1");
+        verify(eventReadService).fetchLogs(null, null, null, "cursor-1");
     }
 }
