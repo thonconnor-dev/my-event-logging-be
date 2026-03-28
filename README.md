@@ -39,22 +39,16 @@ Refer to `specs/001-event-log-api/contracts/events-api.md` for the full API cont
 
 ## Log Retrieval Feature (branch `002-log-readback`)
 
-See `specs/002-log-readback/` for the specification, plan, and runbook covering the transient log cache and GET surface.
-
-### Cache configuration variables
-
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `LOG_CACHE_CAPACITY` | `500` | Maximum number of entries stored in memory before evicting oldest records. |
-| `LOG_CACHE_STALENESS_SECONDS` | `60` | Threshold for reporting the cache as `STALE` when no refresh occurs within this window. |
-| `LOG_CACHE_MAX_PAGE_SIZE` | `200` | Absolute upper bound accepted by the GET endpoint's `limit` parameter. |
-
-Values can be set via environment variables or overridden in `event-log-api/src/main/resources/application.yaml`.
+See `specs/002-log-readback/` for the original cache-based design. That cache has now been retired—reads are served directly from SQLite using deterministic pagination.
 
 ### Fetching logs
 
 ```
-curl "http://localhost:8080/events?limit=100"
+curl "http://localhost:8080/events?pageSize=100"
 ```
 
-Responses include `items`, `nextCursor`, `dataComplete`, and a `cacheStatus` block (state, lastRefresh, evictionCount, stalenessSeconds). Pass the `nextCursor` value back as `cursor` to continue paging. When `cacheStatus.state` reports `EMPTY`, `STALE`, or `TRUNCATED`, treat the data as potentially incomplete and follow the operational guidance in `specs/002-log-readback/quickstart.md`.
+Responses now include only `events`, `nextPageToken`, and `dataComplete`. Keep paging with the returned `nextPageToken` until either `dataComplete=true` or `nextPageToken` is `null`. Any legacy tooling that previously inspected `cacheStatus` must switch to monitoring the `dataComplete` flag and HTTP latency metrics instead (see `specs/004-remove-retention-components/contracts/log-service-api.md`).
+
+## Retention & Cache Removal (branch `004-remove-retention-components`)
+
+`specs/004-remove-retention-components/` documents the work to delete the `RetentionJob`, block `eventlog.retention.*` configuration at startup, and remove `TransientLogCache`. Operators must remove all `eventlog.retention.*` settings before upgrading; the service now fails fast if those keys are present. See the quickstart in the same directory for validating the new behavior (baseline build, GET pagination, `dataComplete` monitoring, and release approval checklist).

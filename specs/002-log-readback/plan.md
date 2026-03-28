@@ -1,5 +1,7 @@
 # Implementation Plan: Log Retrieval API with Transient Cache
 
+> **Status:** Superseded by `/specs/004-remove-retention-components/`. The cache-specific implementation described here is historical—current work reads directly from SQLite.
+
 **Branch**: `002-log-readback` | **Date**: 2026-03-25 | **Spec**: specs/002-log-readback/spec.md
 **Input**: Feature specification from `/specs/002-log-readback/spec.md`
 

@@ -1,5 +1,7 @@
 # Data Model - Log Retrieval API with Transient Cache
 
+> **Status:** Superseded by `/specs/004-remove-retention-components/`. The cache data structures below describe the previous architecture only.
+
 ## Entities
 
 ### LogEntry

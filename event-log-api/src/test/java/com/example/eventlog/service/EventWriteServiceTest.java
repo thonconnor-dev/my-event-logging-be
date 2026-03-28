@@ -3,7 +3,6 @@ package com.example.eventlog.service;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
-import com.example.eventlog.config.RetentionProperties;
 import com.example.eventlog.model.EventRecordEntity;
 import com.example.eventlog.model.EventRequest;
 import com.example.eventlog.model.EventResponse;
@@ -35,7 +34,6 @@ class EventWriteServiceTest {
 
     private EventWriteService service;
     private EventRecordRepository repository;
-    private TransientLogCache transientLogCache;
     private LogIdentityGenerator identityGenerator;
     private ListAppender<ILoggingEvent> appender;
 
@@ -45,17 +43,14 @@ class EventWriteServiceTest {
     void setUp() {
         Clock clock = Clock.fixed(fixedInstant, ZoneOffset.UTC);
         repository = Mockito.mock(EventRecordRepository.class);
-        transientLogCache = Mockito.mock(TransientLogCache.class);
         identityGenerator = Mockito.mock(LogIdentityGenerator.class);
         when(identityGenerator.generate(any())).thenReturn("hash");
 
         service = new EventWriteService(
                 clock,
                 identityGenerator,
-                transientLogCache,
                 repository,
-                new ObjectMapper(),
-                new RetentionProperties(30, "0 0 2 * * *", 500)
+                new ObjectMapper()
         );
 
         Logger logger = (Logger) LoggerFactory.getLogger(EventWriteService.class);
@@ -86,7 +81,6 @@ class EventWriteServiceTest {
         ArgumentCaptor<EventRecordEntity> captor = ArgumentCaptor.forClass(EventRecordEntity.class);
         verify(repository).saveAndFlush(captor.capture());
         assertThat(captor.getValue().getCallerId()).isEqualTo("client-1");
-        verify(transientLogCache).upsert(any());
         assertThat(appender.list).hasSize(1);
         assertThat(appender.list.get(0).getFormattedMessage()).contains("status=logged");
     }
@@ -116,8 +110,6 @@ class EventWriteServiceTest {
 
         assertThat(response.eventId()).isEqualTo(existing.getId().toString());
         verify(repository, never()).saveAndFlush(any());
-        verify(transientLogCache, never()).upsert(any());
-        verify(transientLogCache).ensurePresent(any());
     }
 
     @Test
@@ -146,7 +138,6 @@ class EventWriteServiceTest {
         EventResponse response = service.logEvent(request);
 
         assertThat(response.eventId()).isEqualTo(existing.getId().toString());
-        verify(transientLogCache).ensurePresent(any());
     }
 
     @Test
